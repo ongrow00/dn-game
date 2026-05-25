@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { playClick } from '$lib/sfx';
+	import { playClick, startRingVibration, stopRingVibration } from '$lib/sfx';
 
 	const RINGTONE_SRC = '/JP/cell-phone-vibrate.mp3';
 
@@ -16,6 +16,7 @@
 	function handleAccept() {
 		playClick();
 		stopRingtone();
+		stopRingVibration();
 		goto('/chamada-2/ativa');
 	}
 
@@ -27,6 +28,7 @@
 			ringtone?.play().catch(() => {
 				const resume = () => {
 					ringtone?.play().catch(() => {});
+					startRingVibration();
 				};
 				window.addEventListener('pointerdown', resume, { once: true });
 				window.addEventListener('keydown', resume, { once: true });
@@ -34,9 +36,11 @@
 		};
 
 		playRingtone();
+		startRingVibration();
 
 		return () => {
 			stopRingtone();
+			stopRingVibration();
 			ringtone = undefined;
 		};
 	});
