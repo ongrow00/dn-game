@@ -30,12 +30,12 @@
 	<section class="page-body" aria-labelledby="hero-heading">
 		<div class="hero-stack">
 			<p class="text-lead">Você foi selecionado para a Operação Fragmento.</p>
-			<h1 id="hero-heading" class="heading-hero">
-				<span class="text-accent">Apenas 1,96%</span>
-				<span> das pessoas </span>
-				<span class="text-accent">conseguem identificar</span>
-				<span> o verdadeiro culpado.</span>
-			</h1>
+		<h1 id="hero-heading" class="heading-hero">
+			<span class="text-accent">Só 1,96%</span>
+			<span> das pessoas chegam até o </span>
+			<span class="text-accent">verdadeiro culpado.</span>
+			<span> Você é capaz?</span>
+		</h1>
 		</div>
 	</section>
 
