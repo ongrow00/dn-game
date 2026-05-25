@@ -576,13 +576,13 @@
 
 	.call-screen__backdrop-image {
 		position: absolute;
-		inset: -20%;
-		width: 140%;
-		height: 140%;
+		inset: 0;
+		width: 100%;
+		height: 100%;
 		object-fit: cover;
 		object-position: center;
 		filter: blur(48px) saturate(1.15);
-		transform: scale(1.08);
+		transform: scale(1.3);
 	}
 
 	.call-screen__backdrop-overlay {
