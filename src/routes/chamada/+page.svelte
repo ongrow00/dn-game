@@ -1,47 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { playClick, startRingVibration, stopRingVibration } from '$lib/sfx';
-
-	const RINGTONE_SRC = '/JP/cell-phone-vibrate.mp3';
-
-	let ringtone: HTMLAudioElement | undefined;
-
-	function stopRingtone() {
-		if (!ringtone) return;
-		ringtone.pause();
-		ringtone.currentTime = 0;
-	}
+	import { advanceTo } from '$lib/navigation';
+	import { playClick, startIncomingRing, stopIncomingRing, unlockIncomingRing } from '$lib/sfx';
 
 	function handleAccept() {
 		playClick();
-		stopRingtone();
-		stopRingVibration();
-		goto('/chamada/ativa');
+		stopIncomingRing();
+		advanceTo('/chamada/ativa', 'button_click');
 	}
 
 	onMount(() => {
-		ringtone = new Audio(RINGTONE_SRC);
-		ringtone.loop = true;
-
-		const playRingtone = () => {
-			ringtone?.play().catch(() => {
-				const resume = () => {
-					ringtone?.play().catch(() => {});
-					startRingVibration();
-				};
-				window.addEventListener('pointerdown', resume, { once: true });
-				window.addEventListener('keydown', resume, { once: true });
-			});
-		};
-
-		playRingtone();
-		startRingVibration();
+		startIncomingRing();
 
 		return () => {
-			stopRingtone();
-			stopRingVibration();
-			ringtone = undefined;
+			stopIncomingRing();
 		};
 	});
 </script>
@@ -52,7 +24,7 @@
 		<div class="call-screen__backdrop-overlay"></div>
 	</div>
 
-	<div class="call-screen__content">
+	<div class="call-screen__content" onclick={unlockIncomingRing} role="presentation">
 		<section class="call-screen__caller" aria-labelledby="call-caller-name">
 			<img
 				class="call-screen__avatar"

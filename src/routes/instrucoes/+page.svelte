@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import BrandLogo from '$lib/components/BrandLogo.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
+	import { advanceTo } from '$lib/navigation';
 
 	const ITEM_REVEAL_MS = 1000;
 
@@ -90,7 +90,7 @@
 
 	<footer class="page-footer page-footer--instructions" class:page-footer--cta-visible={showButton}>
 		{#if showButton}
-			<Button onclick={() => goto('/chamada')}>INICIAR AGORA</Button>
+			<Button onclick={() => advanceTo('/chamada', 'button_click')}>INICIAR AGORA</Button>
 		{/if}
 	</footer>
 </main>

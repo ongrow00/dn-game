@@ -550,12 +550,37 @@
 	}
 
 	body:has(.call-screen) .app-shell {
+		width: 100%;
 		max-width: none;
+		min-height: 100dvh;
+		min-height: 100svh;
+		height: 100dvh;
+		height: 100svh;
+		padding: 0;
+	}
+
+	body:has(.call-screen) .app-shell > main {
+		flex: 1;
+		width: 100%;
+		min-height: 0;
+		height: 100%;
 		padding: 0;
 	}
 
 	body:has(.story-screen) .app-shell {
+		width: 100%;
 		max-width: none;
+		min-height: 100dvh;
+		min-height: 100svh;
+		height: 100dvh;
+		height: 100svh;
+		padding: 0;
+	}
+
+	body:has(.story-screen) .app-shell > main {
+		flex: 1;
+		width: 100%;
+		min-height: 0;
 		padding: 0;
 	}
 
@@ -861,11 +886,436 @@
 		transform: rotate(135deg);
 	}
 
+	/* —— FaceTime (chamada-2) —— */
+	.call-screen--facetime:not(.call-screen--facetime-active) {
+		background-color: #000000;
+		overflow: visible;
+	}
+
+	.call-screen--facetime:not(.call-screen--facetime-active) .facetime__content,
+	.call-screen--facetime:not(.call-screen--facetime-active) .facetime__actions,
+	.call-screen--facetime:not(.call-screen--facetime-active) .facetime__accept-wrap {
+		overflow: visible;
+	}
+
+	.facetime__backdrop {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+	}
+
+	.facetime__backdrop-image {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: center top;
+		filter: blur(56px) brightness(0.55) saturate(1.1);
+		transform: scale(1.35);
+	}
+
+	.facetime__backdrop-shade {
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(
+			180deg,
+			rgba(0, 0, 0, 0.35) 0%,
+			rgba(0, 0, 0, 0.2) 42%,
+			rgba(0, 0, 0, 0.72) 100%
+		);
+	}
+
+	.facetime__content {
+		position: relative;
+		z-index: 1;
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		align-items: center;
+		justify-content: space-between;
+		min-height: 100dvh;
+		min-height: 100svh;
+		padding-top: max(10vh, calc(env(safe-area-inset-top, 0px) + 2rem));
+		padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+		padding-bottom: max(2.5rem, env(safe-area-inset-bottom, 0px));
+		padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+	}
+
+	.facetime__preview {
+		display: flex;
+		flex: 1;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		max-height: 52vh;
+		min-height: 0;
+	}
+
+	.facetime__portrait {
+		display: block;
+		width: min(48vw, 10.5rem);
+		height: min(48vw, 10.5rem);
+		border-radius: 50%;
+		object-fit: cover;
+		box-shadow:
+			0 0 0 1px rgba(255, 255, 255, 0.12),
+			0 24px 48px rgba(0, 0, 0, 0.45);
+	}
+
+	.facetime__caller {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.25rem;
+		width: 100%;
+		text-align: center;
+	}
+
+	.facetime__app-label {
+		margin: 0 0 0.125rem;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		line-height: 1.2;
+		letter-spacing: 0.01em;
+		color: rgba(255, 255, 255, 0.72);
+	}
+
+	.facetime__name {
+		margin: 0;
+		font-size: 2rem;
+		font-weight: 600;
+		line-height: 1.1;
+		letter-spacing: -0.03em;
+		color: #ffffff;
+	}
+
+	.facetime__status {
+		margin: 0.125rem 0 0;
+		font-size: 1.0625rem;
+		font-weight: 400;
+		line-height: 1.25;
+		color: rgba(255, 255, 255, 0.65);
+	}
+
+	.facetime__actions {
+		display: flex;
+		align-items: flex-start;
+		justify-content: center;
+		gap: 8rem;
+		width: 100%;
+		max-width: 26rem;
+		padding-top: 1.25rem;
+	}
+
+	.facetime__action-group {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.625rem;
+	}
+
+	.facetime__action-label {
+		font-size: 0.8125rem;
+		font-weight: 400;
+		line-height: 1.2;
+		color: rgba(255, 255, 255, 0.92);
+	}
+
+	.facetime__accept-wrap {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 4.75rem;
+		height: 4.75rem;
+	}
+
+	.facetime__accept-wrap .facetime__action-btn {
+		position: relative;
+		z-index: 1;
+	}
+
+	.facetime__ripple {
+		position: absolute;
+		inset: 0;
+		border: 2px solid rgba(52, 199, 89, 0.5);
+		border-radius: 50%;
+		pointer-events: none;
+		animation: call-accept-ripple 2.4s cubic-bezier(0, 0.2, 0.2, 1) infinite;
+	}
+
+	.facetime__ripple--delay {
+		animation-delay: 1.2s;
+	}
+
+	.facetime__action-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 4.75rem;
+		height: 4.75rem;
+		padding: 0;
+		border: none;
+		border-radius: 50%;
+		cursor: pointer;
+		touch-action: manipulation;
+		-webkit-tap-highlight-color: transparent;
+		transition: transform 120ms ease, opacity 120ms ease;
+	}
+
+	.facetime__action-btn:active {
+		transform: scale(0.94);
+		opacity: 0.88;
+	}
+
+	.facetime__action-btn--decline {
+		background-color: #ff3b30;
+	}
+
+	.facetime__action-btn--accept {
+		background-color: #34c759;
+	}
+
+	.facetime__action-icon {
+		display: block;
+		width: 2rem;
+		height: 2rem;
+		color: #ffffff;
+	}
+
+	.facetime__action-btn--decline .facetime__action-icon {
+		transform: rotate(135deg);
+	}
+
+	/* FaceTime em andamento */
+	.call-screen--facetime-active {
+		width: 100%;
+		height: 100%;
+		height: 100dvh;
+		height: 100svh;
+		overflow: hidden;
+		background-color: #000000;
+	}
+
+	.facetime-active__video {
+		position: fixed;
+		inset: 0;
+		z-index: 0;
+		width: 100%;
+		height: 100%;
+		height: 100dvh;
+		height: 100svh;
+		overflow: hidden;
+		background-color: #000000;
+	}
+
+	.facetime-active__embed {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+	}
+
+	/* Wrapper 9:16 do script Panda — esticado para tela cheia */
+	.facetime-active__embed-ratio {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		padding-top: 0;
+		overflow: hidden;
+		container-type: size;
+		container-name: facetime-video;
+	}
+
+	.facetime-active__embed-frame {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		border: none;
+		pointer-events: none;
+		min-width: 100%;
+		min-height: 100%;
+		transform: translate(-50%, -50%);
+		width: max(100%, 56.25vh);
+		height: max(100%, 177.78vw);
+		max-width: none;
+		max-height: none;
+	}
+
+	@container facetime-video (min-aspect-ratio: 9/16) {
+		.facetime-active__embed-frame {
+			width: auto;
+			height: 177.78cqw;
+		}
+	}
+
+	@container facetime-video (max-aspect-ratio: 9/16) {
+		.facetime-active__embed-frame {
+			width: 177.78cqh;
+			height: auto;
+		}
+	}
+
+	.facetime-active__video-shade {
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(
+			180deg,
+			rgba(0, 0, 0, 0.5) 0%,
+			transparent 22%,
+			transparent 55%,
+			rgba(0, 0, 0, 0.55) 100%
+		);
+		pointer-events: none;
+	}
+
+	.facetime-active__pip {
+		position: absolute;
+		top: max(calc(env(safe-area-inset-top, 0px) + 0.75rem), 1rem);
+		right: max(0.75rem, env(safe-area-inset-right, 0px));
+		z-index: 4;
+		width: 6.5rem;
+		height: 8.75rem;
+		border-radius: 0.875rem;
+		overflow: hidden;
+		box-shadow:
+			0 0 0 1px rgba(255, 255, 255, 0.15),
+			0 8px 24px rgba(0, 0, 0, 0.45);
+	}
+
+	.facetime-active__pip-frame {
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(145deg, #2c2c2e 0%, #1c1c1e 100%);
+	}
+
+	.facetime-active__content {
+		position: fixed;
+		inset: 0;
+		z-index: 3;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		width: 100%;
+		height: 100%;
+		height: 100dvh;
+		height: 100svh;
+		min-height: 100dvh;
+		min-height: 100svh;
+		padding-top: max(calc(env(safe-area-inset-top, 0px) + 1rem), 1.5rem);
+		padding-right: max(1rem, env(safe-area-inset-right, 0px));
+		padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+		padding-left: max(1rem, env(safe-area-inset-left, 0px));
+		pointer-events: none;
+	}
+
+	.facetime-active__header {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.125rem;
+		text-align: center;
+		text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
+	}
+
+	.facetime-active__app {
+		margin: 0;
+		font-size: 0.75rem;
+		font-weight: 500;
+		line-height: 1.2;
+		color: rgba(255, 255, 255, 0.7);
+	}
+
+	.facetime-active__name {
+		margin: 0;
+		font-size: 1.375rem;
+		font-weight: 600;
+		line-height: 1.15;
+		letter-spacing: -0.02em;
+		color: #ffffff;
+	}
+
+	.facetime-active__timer {
+		margin: 0.25rem 0 0;
+		font-size: 0.9375rem;
+		font-weight: 400;
+		line-height: 1.2;
+		color: rgba(255, 255, 255, 0.82);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.facetime-active__toolbar {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 2.25rem;
+		padding-bottom: 0.5rem;
+		pointer-events: auto;
+	}
+
+	.facetime-active__tool {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 0;
+		border: none;
+		background: none;
+		cursor: pointer;
+		touch-action: manipulation;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.facetime-active__tool-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 3.25rem;
+		height: 3.25rem;
+		border-radius: 50%;
+		background-color: rgba(255, 255, 255, 0.22);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+	}
+
+	.facetime-active__tool--end .facetime-active__tool-btn--end {
+		width: 4.5rem;
+		height: 4.5rem;
+		background-color: #ff3b30;
+	}
+
+	.facetime-active__tool--end .facetime-active__tool-icon {
+		transform: rotate(135deg);
+	}
+
+	.facetime-active__tool:active .facetime-active__tool-btn {
+		opacity: 0.85;
+		transform: scale(0.94);
+	}
+
+	.facetime-active__tool-icon {
+		display: block;
+		width: 1.5rem;
+		height: 1.5rem;
+		color: #ffffff;
+	}
+
+	.facetime-active__tool--end .facetime-active__tool-icon {
+		width: 1.75rem;
+		height: 1.75rem;
+	}
+
 	/* —— Tela de story (estilo Instagram) —— */
 	.story-screen {
 		position: fixed;
 		inset: 0;
 		z-index: 100;
+		width: 100%;
+		height: 100%;
+		height: 100dvh;
+		height: 100svh;
 		overflow: hidden;
 		background-color: #000000;
 		color: #ffffff;
@@ -874,14 +1324,52 @@
 		-webkit-font-smoothing: antialiased;
 	}
 
-	.story-screen__video {
+	.story-screen__video,
+	.story-screen__embed {
 		position: absolute;
 		inset: 0;
 		width: 100%;
 		height: 100%;
+		background-color: #000000;
+	}
+
+	.story-screen__video {
 		object-fit: cover;
 		object-position: center;
-		background-color: #000000;
+	}
+
+	/* Panda embed — cover em qualquer resolução (vídeo 9:16) */
+	.story-screen__embed {
+		container-type: size;
+		container-name: story-video;
+		overflow: hidden;
+	}
+
+	.story-screen__embed-frame {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		min-width: 100%;
+		min-height: 100%;
+		border: none;
+		transform: translate(-50%, -50%);
+		/* fallback sem container queries */
+		width: max(100%, 56.25vh);
+		height: max(100%, 177.78vw);
+	}
+
+	@container story-video (min-aspect-ratio: 9/16) {
+		.story-screen__embed-frame {
+			width: auto;
+			height: 177.78cqw;
+		}
+	}
+
+	@container story-video (max-aspect-ratio: 9/16) {
+		.story-screen__embed-frame {
+			width: 177.78cqh;
+			height: auto;
+		}
 	}
 
 	.story-screen__overlay {

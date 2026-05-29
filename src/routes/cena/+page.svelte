@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { advanceTo } from '$lib/navigation';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ZoomableImage from '$lib/components/ZoomableImage.svelte';
 
 	const SCENE_PHOTO_SRC = '/images/cena-foto.png';
 
 	function handleAdvance() {
-		goto('/historia-2');
+		advanceTo('/historia-2', 'button_click');
 	}
 </script>
 

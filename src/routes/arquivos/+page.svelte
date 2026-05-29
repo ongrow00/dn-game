@@ -1,9 +1,18 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import Button from '$lib/components/ui/Button.svelte';
+	import { trackReceiveFilesClick } from '$lib/analytics';
+	import { appendUtmsToUrl, loadUtms } from '$lib/utm';
+
+	const ARCHIVES_URL = 'https://detectivenight.com/pages/arquivos-joao-picadinho';
 
 	let showContent = $state(false);
+
+	function handleReceiveFiles() {
+		const url = appendUtmsToUrl(ARCHIVES_URL, loadUtms());
+		trackReceiveFilesClick(url);
+		window.location.href = url;
+	}
 
 	onMount(() => {
 		setTimeout(() => (showContent = true), 400);
@@ -25,6 +34,6 @@
 	</div>
 
 	<footer class="files-screen__footer" class:files-screen__footer--visible={showContent}>
-		<Button onclick={() => goto('/comprar')}>RECEBER ARQUIVOS</Button>
+		<Button onclick={handleReceiveFiles}>RECEBER ARQUIVOS</Button>
 	</footer>
 </main>

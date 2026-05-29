@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { advanceTo } from '$lib/navigation';
 	import { playClick } from '$lib/sfx';
 
 	interface Suspect {
@@ -22,7 +22,7 @@
 		playClick();
 		navigator.vibrate?.(30);
 		setTimeout(() => {
-			goto('/chamada-2');
+			advanceTo('/chamada-2', 'interaction');
 		}, 600);
 	}
 </script>

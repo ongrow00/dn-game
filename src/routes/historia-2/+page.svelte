@@ -1,17 +1,33 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { advanceTo } from '$lib/navigation';
 	import StoryScreen from '$lib/components/StoryScreen.svelte';
+	import { getPandaHeadLinks, PANDA_VD002 } from '$lib/constants/panda';
 	import { STORY_COUNT } from '$lib/constants/story';
 
-	const VIDEO_SRC = '/JP/VD02.mov';
+	const panda = PANDA_VD002;
+	const headLinks = getPandaHeadLinks(panda);
 
 	function handleEnded() {
-		goto('/enigma');
+		advanceTo('/enigma', 'video_end');
 	}
 </script>
 
+<svelte:head>
+	<link rel="preload" href="https://player.pandavideo.com.br/api.v2.js" as="script" />
+	{#each headLinks as link (link.href + link.rel)}
+		{#if link.as}
+			<link rel={link.rel} href={link.href} as={link.as} />
+		{:else}
+			<link rel={link.rel} href={link.href} />
+		{/if}
+	{/each}
+</svelte:head>
+
 <StoryScreen
-	videoSrc={VIDEO_SRC}
+	embedSrc={panda.embedSrc}
+	pandaIframeId={panda.iframeId}
+	pandaHlsUrl={panda.hlsUrl}
+	segmentDurationSec={panda.durationSec}
 	activeStoryIndex={1}
 	storyCount={STORY_COUNT}
 	onEnded={handleEnded}

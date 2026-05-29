@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { advanceTo } from '$lib/navigation';
 	import { playClick } from '$lib/sfx';
 
 	const CALL_AUDIO_SRC = '/JP/AD01.mp3';
@@ -28,7 +28,7 @@
 		if (hasNavigated) return;
 		hasNavigated = true;
 		stopCallAudio();
-		goto('/historia');
+		advanceTo('/historia', 'video_end');
 	}
 
 	function handleHangUp() {

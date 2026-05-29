@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { advanceTo } from '$lib/navigation';
 	import { playClick } from '$lib/sfx';
 
 	const options = [
@@ -10,7 +10,7 @@
 	] as const;
 
 	function goToScene() {
-		goto('/cena');
+		advanceTo('/cena', 'interaction');
 	}
 
 	function handleSelect(_option: (typeof options)[number]) {
@@ -20,7 +20,7 @@
 
 	function handleSkip() {
 		playClick();
-		goToScene();
+		advanceTo('/cena', 'quiz_skip');
 	}
 </script>
 

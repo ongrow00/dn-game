@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { advanceTo } from '$lib/navigation';
 	import { playClick } from '$lib/sfx';
 
 	const CORRECT_CODE = '47';
@@ -35,7 +35,7 @@
 
 	function checkCode() {
 		if (entered === CORRECT_CODE) {
-			goto('/mensagem');
+			advanceTo('/mensagem', 'quiz_solved');
 		} else {
 			error = true;
 			shaking = true;
@@ -116,6 +116,6 @@
 	</div>
 
 	<footer class="passcode-screen__footer">
-		<button type="button" class="quiz-screen__skip" onclick={() => { playClick(); goto('/mensagem'); }}>Pular Enigma</button>
+		<button type="button" class="quiz-screen__skip" onclick={() => { playClick(); advanceTo('/mensagem', 'quiz_skip'); }}>Pular Enigma</button>
 	</footer>
 </main>

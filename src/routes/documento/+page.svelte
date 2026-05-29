@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { advanceTo } from '$lib/navigation';
 	import { playClick } from '$lib/sfx';
 
 	interface Fragment {
@@ -158,7 +158,7 @@
 
 	function handleSkip() {
 		playClick();
-		goto('/suspeitos');
+		advanceTo('/suspeitos', 'quiz_skip');
 	}
 </script>
 
@@ -206,7 +206,7 @@
 
 	<footer class="puzzle-screen__footer">
 		{#if solved}
-			<button type="button" class="puzzle-screen__advance" onclick={() => { playClick(); goto('/suspeitos'); }}>
+			<button type="button" class="puzzle-screen__advance" onclick={() => { playClick(); advanceTo('/suspeitos', 'puzzle_solved'); }}>
 				AVANÇAR
 			</button>
 		{:else}

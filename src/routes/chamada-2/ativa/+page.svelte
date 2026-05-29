@@ -1,34 +1,36 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { advanceTo } from '$lib/navigation';
 	import { playClick } from '$lib/sfx';
+	import { getPandaHeadLinks, PANDA_FACETIME_CALL } from '$lib/constants/panda';
 
-	const CALL_AUDIO_SRC = '/JP/AD02.mp3';
+	const PANDA_API_SRC = 'https://player.pandavideo.com.br/api.v2.js';
+	const panda = PANDA_FACETIME_CALL;
 
-	const controls = [
-		{ id: 'mute', label: 'silenciar', icon: 'mute' },
-		{ id: 'keypad', label: 'teclado', icon: 'keypad' },
-		{ id: 'speaker', label: 'viva-voz', icon: 'speaker' },
-		{ id: 'add-call', label: 'adicionar', icon: 'add-call' },
-		{ id: 'facetime', label: 'FaceTime', icon: 'facetime' },
-		{ id: 'contacts', label: 'contatos', icon: 'contacts' }
-	] as const;
+	type PandaPlayerEvent = {
+		message: string;
+		currentTime?: number;
+		duration?: number;
+	};
+
+	type PandaPlayerInstance = {
+		onEvent: (cb: (e: PandaPlayerEvent) => void) => void;
+		play: () => void;
+		getCurrentTime: () => number;
+	};
 
 	let elapsedSeconds = $state(0);
-	let callAudio: HTMLAudioElement | undefined;
+	let embedDurationSec = $state(panda.durationSec);
 	let hasNavigated = false;
-
-	function stopCallAudio() {
-		if (!callAudio) return;
-		callAudio.pause();
-		callAudio.currentTime = 0;
-	}
+	let safetyTimer: ReturnType<typeof setTimeout> | undefined;
+	let progressRafId: number | undefined;
 
 	function goToNext() {
 		if (hasNavigated) return;
 		hasNavigated = true;
-		stopCallAudio();
-		goto('/acesso');
+		if (safetyTimer) clearTimeout(safetyTimer);
+		stopProgressLoop();
+		advanceTo('/acesso', 'video_end');
 	}
 
 	function handleHangUp() {
@@ -42,21 +44,171 @@
 		return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 	}
 
-	onMount(() => {
-		callAudio = new Audio(CALL_AUDIO_SRC);
-		callAudio.addEventListener('ended', goToNext);
+	function effectiveDuration(durationFromEvent?: number): number {
+		if (typeof durationFromEvent === 'number' && durationFromEvent > 0) return durationFromEvent;
+		return embedDurationSec || panda.durationSec;
+	}
 
-		const playCallAudio = () => {
-			callAudio?.play().catch(() => {
-				const resume = () => {
-					callAudio?.play().catch(() => {});
-				};
-				window.addEventListener('pointerdown', resume, { once: true });
-				window.addEventListener('keydown', resume, { once: true });
-			});
+	function setEmbedDuration(durationSec: number) {
+		if (!Number.isFinite(durationSec) || durationSec <= 0) return;
+		embedDurationSec = durationSec;
+		if (safetyTimer) clearTimeout(safetyTimer);
+		safetyTimer = setTimeout(() => goToNext(), durationSec * 1000 + 3000);
+	}
+
+	function syncPlayback(message: string, currentTime = 0, durationFromEvent?: number) {
+		if (typeof durationFromEvent === 'number' && durationFromEvent > 0) {
+			setEmbedDuration(durationFromEvent);
+		}
+
+		const duration = effectiveDuration(durationFromEvent);
+		if (message === 'panda_timeupdate' && duration > 0 && currentTime >= duration - 0.15) {
+			goToNext();
+		}
+		if (message === 'panda_ended') {
+			goToNext();
+		}
+	}
+
+	function stopProgressLoop() {
+		if (progressRafId !== undefined) {
+			cancelAnimationFrame(progressRafId);
+			progressRafId = undefined;
+		}
+	}
+
+	function startProgressLoop(getTime: () => number) {
+		stopProgressLoop();
+		const tick = () => {
+			if (hasNavigated) return;
+			const duration = effectiveDuration();
+			const currentTime = getTime();
+			if (duration > 0 && currentTime >= duration - 0.15) {
+				goToNext();
+				return;
+			}
+			progressRafId = requestAnimationFrame(tick);
 		};
+		progressRafId = requestAnimationFrame(tick);
+	}
 
-		playCallAudio();
+	async function loadDurationFromHls() {
+		try {
+			const res = await fetch(panda.hlsUrl);
+			if (!res.ok) return;
+			const text = await res.text();
+			let total = 0;
+			for (const line of text.split('\n')) {
+				if (line.startsWith('#EXTINF:')) {
+					const sec = parseFloat(line.slice(8).split(',')[0]);
+					if (!Number.isNaN(sec)) total += sec;
+				}
+			}
+			if (total > 0) setEmbedDuration(total);
+		} catch {
+			/* ignore */
+		}
+	}
+
+	function isPandaMessage(event: MessageEvent): boolean {
+		try {
+			const embedOrigin = new URL(panda.embedSrc).origin;
+			if (event.origin === embedOrigin) return true;
+		} catch {
+			/* ignore */
+		}
+		return event.origin.includes('pandavideo.com.br');
+	}
+
+	function triggerPandaPlay() {
+		const iframe = document.getElementById(panda.iframeId);
+		if (!(iframe instanceof HTMLIFrameElement) || !iframe.contentWindow) return;
+		iframe.contentWindow.postMessage({ type: 'play' }, '*');
+	}
+
+	function handlePandaMessage(event: MessageEvent) {
+		if (!isPandaMessage(event)) return;
+		const data = event.data;
+		if (!data || typeof data !== 'object' || !('message' in data)) return;
+
+		const message = data.message as string;
+		if (message === 'panda_ready') triggerPandaPlay();
+
+		const currentTime = typeof data.currentTime === 'number' ? data.currentTime : 0;
+		const duration =
+			typeof (data as Record<string, unknown>).duration === 'number'
+				? ((data as Record<string, unknown>).duration as number)
+				: undefined;
+
+		syncPlayback(message, currentTime, duration);
+	}
+
+	function loadPandaApiScript(): Promise<void> {
+		const w = window as Window & { PandaPlayer?: unknown };
+		if (w.PandaPlayer) return Promise.resolve();
+
+		return new Promise((resolve, reject) => {
+			const existing = document.querySelector(`script[src="${PANDA_API_SRC}"]`);
+			if (existing) {
+				existing.addEventListener('load', () => resolve(), { once: true });
+				existing.addEventListener('error', () => reject(), { once: true });
+				return;
+			}
+			const script = document.createElement('script');
+			script.src = PANDA_API_SRC;
+			script.async = true;
+			script.onload = () => resolve();
+			script.onerror = () => reject();
+			document.head.appendChild(script);
+		});
+	}
+
+	function initPandaPlayerApi() {
+		return loadPandaApiScript()
+			.then(
+				() =>
+					new Promise<boolean>((resolve) => {
+						const w = window as unknown as {
+							PandaPlayer?: new (
+								id: string,
+								opts: { onReady?: () => void; onError?: () => void }
+							) => PandaPlayerInstance;
+							pandascripttag?: Array<() => void>;
+						};
+
+						const PandaPlayer = w.PandaPlayer;
+						if (!PandaPlayer) {
+							resolve(false);
+							return;
+						}
+
+						w.pandascripttag = w.pandascripttag || [];
+						w.pandascripttag.push(() => {
+							const player = new PandaPlayer(panda.iframeId, {
+								onReady: () => {
+									triggerPandaPlay();
+									player.onEvent((e) => syncPlayback(e.message, e.currentTime, e.duration));
+									startProgressLoop(() => player.getCurrentTime());
+									resolve(true);
+								},
+								onError: () => resolve(false)
+							});
+						});
+					})
+			)
+			.catch(() => false);
+	}
+
+	onMount(() => {
+		setEmbedDuration(panda.durationSec);
+		void loadDurationFromHls();
+		void initPandaPlayerApi();
+
+		window.addEventListener('message', handlePandaMessage);
+
+		const resumeOnGesture = () => triggerPandaPlay();
+		window.addEventListener('pointerdown', resumeOnGesture, { once: true });
+		window.addEventListener('keydown', resumeOnGesture, { once: true });
 
 		const intervalId = setInterval(() => {
 			elapsedSeconds += 1;
@@ -64,121 +216,97 @@
 
 		return () => {
 			clearInterval(intervalId);
-			callAudio?.removeEventListener('ended', goToNext);
-			stopCallAudio();
-			callAudio = undefined;
+			window.removeEventListener('message', handlePandaMessage);
+			window.removeEventListener('pointerdown', resumeOnGesture);
+			window.removeEventListener('keydown', resumeOnGesture);
+			stopProgressLoop();
+			if (safetyTimer) clearTimeout(safetyTimer);
 		};
 	});
 </script>
 
-<main class="call-screen call-active" aria-label="Chamada em andamento">
-	<div class="call-screen__backdrop" aria-hidden="true">
-		<img class="call-screen__backdrop-image" src="/images/call-bg.png" alt="" />
-		<div class="call-screen__backdrop-overlay"></div>
+<svelte:head>
+	<link rel="preload" href={PANDA_API_SRC} as="script" />
+	{#each getPandaHeadLinks(panda) as link (link.href + link.rel)}
+		{#if link.as}
+			<link rel={link.rel} href={link.href} as={link.as} />
+		{:else}
+			<link rel={link.rel} href={link.href} />
+		{/if}
+	{/each}
+</svelte:head>
+
+<main class="call-screen call-screen--facetime call-screen--facetime-active" aria-label="FaceTime em andamento">
+	<div class="facetime-active__video" aria-hidden="true">
+		<div class="facetime-active__embed">
+			<div class="facetime-active__embed-ratio">
+				<iframe
+					id={panda.iframeId}
+					class="facetime-active__embed-frame"
+					title="FaceTime — Detetive Eduardo"
+					src={panda.embedSrc}
+					allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+					allowfullscreen
+					width="100%"
+					height="100%"
+				></iframe>
+			</div>
+		</div>
+		<div class="facetime-active__video-shade"></div>
 	</div>
 
-	<div class="call-active__content">
-		<header class="call-active__header">
-			<img
-				class="call-active__avatar"
-				src="/images/call-avatar-2.png"
-				alt=""
-				width="44"
-				height="44"
-			/>
-			<div class="call-active__info">
-				<p class="call-active__timer" aria-live="polite">{formatTimer(elapsedSeconds)}</p>
-				<p class="call-active__name">Detetive Marcio</p>
-			</div>
+	<div class="facetime-active__pip" aria-hidden="true">
+		<div class="facetime-active__pip-frame"></div>
+	</div>
+
+	<div class="facetime-active__content">
+		<header class="facetime-active__header">
+			<p class="facetime-active__app">FaceTime</p>
+			<p class="facetime-active__name">Detetive Eduardo</p>
+			<p class="facetime-active__timer" aria-live="polite">{formatTimer(elapsedSeconds)}</p>
 		</header>
 
-		<section class="call-active__controls-wrap" aria-label="Controles da chamada">
-			<div class="call-active__controls">
-				{#each controls as control (control.id)}
-					<button type="button" class="call-active__control">
-						<span class="call-active__control-btn" aria-hidden="true">
-							{#if control.icon === 'mute'}
-								<svg viewBox="0 0 24 24" class="call-active__control-icon">
-									<path
-										d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"
-										fill="currentColor"
-									/>
-									<path
-										d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"
-										fill="currentColor"
-									/>
-									<path
-										d="M3 3l18 18"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-									/>
-								</svg>
-							{:else if control.icon === 'keypad'}
-								<svg viewBox="0 0 24 24" class="call-active__control-icon">
-									{#each Array(9) as _, i}
-										<circle
-											cx={(i % 3) * 7 + 5}
-											cy={Math.floor(i / 3) * 7 + 5}
-											r="1.35"
-											fill="currentColor"
-										/>
-									{/each}
-								</svg>
-							{:else if control.icon === 'speaker'}
-								<svg viewBox="0 0 24 24" class="call-active__control-icon">
-									<path
-										d="M3 10v4h4l5 5V5L7 10H3zm11.5 2c0-1.77-1.02-3.29-2.5-4.03v8.06c1.48-.74 2.5-2.26 2.5-4.03z"
-										fill="currentColor"
-									/>
-									<path
-										d="M14.5 3.23v2.06c2.89 1 5 3.77 5 6.71s-2.11 5.71-5 6.71v2.06c4.01-1.11 7-4.86 7-8.77s-2.99-7.66-7-8.77z"
-										fill="currentColor"
-									/>
-								</svg>
-							{:else if control.icon === 'add-call'}
-								<svg viewBox="0 0 24 24" class="call-active__control-icon">
-									<path
-										d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
-										fill="currentColor"
-									/>
-								</svg>
-							{:else if control.icon === 'facetime'}
-								<svg viewBox="0 0 24 24" class="call-active__control-icon">
-									<path
-										d="M17 10.5V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-3.5l4 4v-11l-4 4z"
-										fill="currentColor"
-									/>
-									<text x="9" y="14" fill="currentColor" font-size="7" font-weight="700">?</text>
-								</svg>
-							{:else}
-								<svg viewBox="0 0 24 24" class="call-active__control-icon">
-									<path
-										d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-										fill="currentColor"
-									/>
-								</svg>
-							{/if}
-						</span>
-						<span class="call-active__control-label">{control.label}</span>
-					</button>
-				{/each}
-			</div>
-		</section>
+		<footer class="facetime-active__toolbar" aria-label="Controles do FaceTime">
+			<button type="button" class="facetime-active__tool" aria-label="Desativar som">
+				<span class="facetime-active__tool-btn">
+					<svg viewBox="0 0 24 24" class="facetime-active__tool-icon">
+						<path
+							d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"
+							fill="currentColor"
+						/>
+						<path
+							d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"
+							fill="currentColor"
+						/>
+					</svg>
+				</span>
+			</button>
 
-		<footer class="call-active__footer">
 			<button
 				type="button"
-				class="call-screen__action call-screen__action--decline"
-				aria-label="Encerrar chamada"
+				class="facetime-active__tool facetime-active__tool--end"
+				aria-label="Encerrar FaceTime"
 				onclick={handleHangUp}
 			>
-				<svg viewBox="0 0 24 24" aria-hidden="true" class="call-screen__action-icon">
-					<path
-						d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.36 11.36 0 003.58.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.36 11.36 0 00.57 3.58 1 1 0 01-.25 1.01l-2.2 2.2z"
-						fill="currentColor"
-					/>
-				</svg>
+				<span class="facetime-active__tool-btn facetime-active__tool-btn--end">
+					<svg viewBox="0 0 24 24" class="facetime-active__tool-icon">
+						<path
+							d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.36 11.36 0 003.58.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.36 11.36 0 00.57 3.58 1 1 0 01-.25 1.01l-2.2 2.2z"
+							fill="currentColor"
+						/>
+					</svg>
+				</span>
+			</button>
+
+			<button type="button" class="facetime-active__tool" aria-label="Virar câmera">
+				<span class="facetime-active__tool-btn">
+					<svg viewBox="0 0 24 24" class="facetime-active__tool-icon">
+						<path
+							d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"
+							fill="currentColor"
+						/>
+					</svg>
+				</span>
 			</button>
 		</footer>
 	</div>

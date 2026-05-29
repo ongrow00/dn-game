@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { advanceTo } from '$lib/navigation';
 	import { onMount } from 'svelte';
 	import { playClick } from '$lib/sfx';
 
@@ -36,7 +36,7 @@
 
 	function advance() {
 		playClick();
-		goto('/historia-4');
+		advanceTo('/historia-4', 'button_click');
 	}
 </script>
 

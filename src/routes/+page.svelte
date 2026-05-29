@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import BrandLogo from '$lib/components/BrandLogo.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
+	import { advanceTo } from '$lib/navigation';
+	import { trackAcceptMissionClick } from '$lib/analytics';
 
 	const MIN_REMAINING_ACCESS = 2;
 	const ACCESS_COUNTDOWN_MS = 10_000;
@@ -20,6 +21,11 @@
 
 		return () => clearInterval(intervalId);
 	});
+
+	function handleAcceptMission() {
+		trackAcceptMissionClick();
+		advanceTo('/instrucoes', 'button_click');
+	}
 </script>
 
 <main class="page-main page-main--spread">
@@ -43,6 +49,6 @@
 		<p class="text-caption" aria-live="polite">
 			Restam apenas <strong>{remainingAccess} acessos gratuitos</strong>.
 		</p>
-		<Button onclick={() => goto('/instrucoes')}>ACEITAR MISSÃO</Button>
+		<Button onclick={handleAcceptMission}>ACEITAR MISSÃO</Button>
 	</footer>
 </main>

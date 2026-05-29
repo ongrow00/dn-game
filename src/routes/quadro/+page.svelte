@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { advanceTo } from '$lib/navigation';
 	import { playClick } from '$lib/sfx';
 	import Button from '$lib/components/ui/Button.svelte';
 	import EvidenceBoard from '$lib/components/EvidenceBoard.svelte';
@@ -7,12 +7,12 @@
 	let hasConnection = $state(false);
 
 	function goToStory() {
-		goto('/historia-3');
+		advanceTo('/historia-3', 'interaction');
 	}
 
 	function handleSkip() {
 		playClick();
-		goToStory();
+		advanceTo('/historia-3', 'quiz_skip');
 	}
 
 	function handleAdvance() {

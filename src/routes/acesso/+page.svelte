@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { advanceTo } from '$lib/navigation';
 	import { onMount } from 'svelte';
 
 	const messages = [
@@ -15,7 +15,7 @@
 		setTimeout(() => (currentIndex = 1), 2800);
 		setTimeout(() => (currentIndex = 2), 4800);
 		setTimeout(() => {
-			goto('/arquivos');
+			advanceTo('/arquivos', 'auto');
 		}, 8800);
 	});
 </script>
