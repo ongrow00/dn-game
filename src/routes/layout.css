@@ -1159,6 +1159,14 @@
 		}
 	}
 
+	.facetime-active__shield {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		pointer-events: auto;
+		touch-action: manipulation;
+	}
+
 	.facetime-active__video-shade {
 		position: absolute;
 		inset: 0;
@@ -1353,9 +1361,18 @@
 		min-height: 100%;
 		border: none;
 		transform: translate(-50%, -50%);
+		pointer-events: none;
 		/* fallback sem container queries */
 		width: max(100%, 56.25vh);
 		height: max(100%, 177.78vw);
+	}
+
+	.story-screen__shield {
+		position: absolute;
+		inset: 0;
+		z-index: 2;
+		pointer-events: auto;
+		touch-action: manipulation;
 	}
 
 	@container story-video (min-aspect-ratio: 9/16) {
@@ -1374,7 +1391,7 @@
 
 	.story-screen__overlay {
 		position: relative;
-		z-index: 1;
+		z-index: 3;
 		display: flex;
 		flex-direction: column;
 		gap: 0.625rem;

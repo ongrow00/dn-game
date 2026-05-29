@@ -25,7 +25,8 @@ function buildEmbedSrc(videoId: string): string {
 		saveProgress: 'false',
 		hideControlsOnStart: 'true',
 		preload: 'true',
-		controls: ''
+		controls: '',
+		disableForward: 'true'
 	});
 	return `${PANDA_PLAYER_ORIGIN}/embed/?${query}`;
 }
@@ -63,7 +64,8 @@ function buildFacetimeEmbedSrc(videoId: string): string {
 		saveProgress: 'false',
 		hideControlsOnStart: 'true',
 		preload: 'true',
-		controls: ''
+		controls: '',
+		disableForward: 'true'
 	});
 	return `${PANDA_PLAYER_ORIGIN}/embed/?${query}`;
 }

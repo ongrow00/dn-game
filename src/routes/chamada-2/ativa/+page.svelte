@@ -3,6 +3,7 @@
 	import { advanceTo } from '$lib/navigation';
 	import { playClick } from '$lib/sfx';
 	import { getPandaHeadLinks, PANDA_FACETIME_CALL } from '$lib/constants/panda';
+	import { createWatchGuard, setPandaCurrentTime } from '$lib/panda-watch';
 
 	const PANDA_API_SRC = 'https://player.pandavideo.com.br/api.v2.js';
 	const panda = PANDA_FACETIME_CALL;
@@ -24,6 +25,7 @@
 	let hasNavigated = false;
 	let safetyTimer: ReturnType<typeof setTimeout> | undefined;
 	let progressRafId: number | undefined;
+	const watchGuard = createWatchGuard();
 
 	function goToNext() {
 		if (hasNavigated) return;
@@ -35,7 +37,20 @@
 
 	function handleHangUp() {
 		playClick();
+		if (watchGuard.canComplete(effectiveDuration())) {
+			goToNext();
+		}
+	}
+
+	function tryGoNext(duration: number) {
+		if (hasNavigated || !watchGuard.canComplete(duration)) return;
 		goToNext();
+	}
+
+	function trackWatchTime(currentTime: number) {
+		if (!watchGuard.record(currentTime)) {
+			setPandaCurrentTime(panda.iframeId, watchGuard.maxWatchedSec);
+		}
 	}
 
 	function formatTimer(totalSeconds: number) {
@@ -53,7 +68,7 @@
 		if (!Number.isFinite(durationSec) || durationSec <= 0) return;
 		embedDurationSec = durationSec;
 		if (safetyTimer) clearTimeout(safetyTimer);
-		safetyTimer = setTimeout(() => goToNext(), durationSec * 1000 + 3000);
+		safetyTimer = setTimeout(() => tryGoNext(durationSec), durationSec * 1000 + 3000);
 	}
 
 	function syncPlayback(message: string, currentTime = 0, durationFromEvent?: number) {
@@ -62,11 +77,15 @@
 		}
 
 		const duration = effectiveDuration(durationFromEvent);
-		if (message === 'panda_timeupdate' && duration > 0 && currentTime >= duration - 0.15) {
-			goToNext();
+		if (message === 'panda_timeupdate' && duration > 0) {
+			trackWatchTime(currentTime);
+			tryGoNext(duration);
 		}
 		if (message === 'panda_ended') {
-			goToNext();
+			tryGoNext(duration);
+		}
+		if (message === 'panda_seeked' || message === 'panda_seeking') {
+			setPandaCurrentTime(panda.iframeId, watchGuard.maxWatchedSec);
 		}
 	}
 
@@ -83,9 +102,9 @@
 			if (hasNavigated) return;
 			const duration = effectiveDuration();
 			const currentTime = getTime();
-			if (duration > 0 && currentTime >= duration - 0.15) {
-				goToNext();
-				return;
+			if (duration > 0) {
+				trackWatchTime(currentTime);
+				tryGoNext(duration);
 			}
 			progressRafId = requestAnimationFrame(tick);
 		};
@@ -200,6 +219,7 @@
 	}
 
 	onMount(() => {
+		watchGuard.reset();
 		setEmbedDuration(panda.durationSec);
 		void loadDurationFromHls();
 		void initPandaPlayerApi();
@@ -253,6 +273,7 @@
 			</div>
 		</div>
 		<div class="facetime-active__video-shade"></div>
+		<div class="facetime-active__shield" aria-hidden="true"></div>
 	</div>
 
 	<div class="facetime-active__pip" aria-hidden="true">

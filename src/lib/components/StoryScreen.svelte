@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { createWatchGuard, setPandaCurrentTime } from '$lib/panda-watch';
 
 	const PANDA_API_SRC = 'https://player.pandavideo.com.br/api.v2.js';
 
@@ -51,7 +52,33 @@
 	let hasEnded = false;
 	let safetyTimer: ReturnType<typeof setTimeout> | undefined;
 	let progressRafId: number | undefined;
+	const watchGuard = createWatchGuard();
 	const useEmbed = $derived(Boolean(embedSrc));
+
+	function enforceWatchPosition(timeSec: number) {
+		if (useEmbed && pandaIframeId) {
+			setPandaCurrentTime(pandaIframeId, timeSec);
+		} else if (videoEl) {
+			videoEl.currentTime = startTime + timeSec;
+		}
+	}
+
+	function tryComplete(durationSec: number) {
+		if (hasEnded || !watchGuard.canComplete(durationSec)) return;
+		handleEnded();
+	}
+
+	function trackPlayback(currentTime: number, durationSec: number) {
+		const relativeTime = useEmbed ? currentTime : Math.max(0, currentTime - startTime);
+		if (!watchGuard.record(relativeTime)) {
+			enforceWatchPosition(watchGuard.maxWatchedSec);
+			return relativeTime;
+		}
+		if (durationSec > 0) {
+			progress = Math.min(1, Math.max(0, relativeTime / durationSec));
+		}
+		return relativeTime;
+	}
 
 	function effectiveEmbedDuration(durationFromEvent?: number): number {
 		if (typeof durationFromEvent === 'number' && durationFromEvent > 0) return durationFromEvent;
@@ -62,12 +89,8 @@
 		const duration = effectiveEmbedDuration(durationFromEvent);
 		if (duration <= 0 || hasEnded) return;
 
-		progress = Math.min(1, Math.max(0, currentTime / duration));
-
-		if (currentTime >= duration - 0.15) {
-			progress = 1;
-			handleEnded();
-		}
+		trackPlayback(currentTime, duration);
+		tryComplete(duration);
 	}
 
 	async function loadDurationFromHls(url: string) {
@@ -110,7 +133,7 @@
 	function armSafetyFallback(durationSec: number) {
 		if (durationSec <= 0) return;
 		if (safetyTimer) clearTimeout(safetyTimer);
-		safetyTimer = setTimeout(() => handleEnded(), durationSec * 1000 + 3000);
+		safetyTimer = setTimeout(() => tryComplete(durationSec), durationSec * 1000 + 3000);
 	}
 
 	function setEmbedDuration(durationSec: number) {
@@ -130,8 +153,13 @@
 		}
 
 		if (message === 'panda_ended') {
+			const duration = effectiveEmbedDuration(durationFromEvent);
 			progress = 1;
-			handleEnded();
+			tryComplete(duration);
+		}
+
+		if (message === 'panda_seeked' || message === 'panda_seeking') {
+			enforceWatchPosition(watchGuard.maxWatchedSec);
 		}
 	}
 
@@ -144,8 +172,15 @@
 		if (!videoEl) return;
 		const duration = segmentDuration();
 		if (duration <= 0) return;
-		const elapsed = videoEl.currentTime - startTime;
-		progress = Math.min(1, Math.max(0, elapsed / duration));
+		trackPlayback(videoEl.currentTime, duration);
+	}
+
+	function handleVideoSeeking() {
+		if (!videoEl) return;
+		const relative = videoEl.currentTime - startTime;
+		if (relative > watchGuard.maxWatchedSec + 0.35) {
+			enforceWatchPosition(watchGuard.maxWatchedSec);
+		}
 	}
 
 	function handleEnded() {
@@ -282,6 +317,8 @@
 	}
 
 	onMount(() => {
+		watchGuard.reset();
+
 		if (useEmbed) {
 			if (segmentDurationSec && segmentDurationSec > 0) {
 				setEmbedDuration(segmentDurationSec);
@@ -343,9 +380,13 @@
 			playsinline
 			preload="auto"
 			ontimeupdate={handleTimeUpdate}
-			onended={handleEnded}
+			onseeking={handleVideoSeeking}
+			onended={() => tryComplete(segmentDuration())}
 		></video>
 	{/if}
+
+	<!-- Bloqueia toque nas laterais / no player — não avança a página -->
+	<div class="story-screen__shield" aria-hidden="true"></div>
 
 	<div class="story-screen__overlay">
 		<div class="story-screen__progress" aria-hidden="true">
